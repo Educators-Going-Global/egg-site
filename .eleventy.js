@@ -10,11 +10,13 @@ const client = contentful.createClient({
 const { documentToHtmlString } = require("@contentful/rich-text-html-renderer");
 
 const imageProcessing = (photo) => {
-  return `<img class='u-max-full-width'
-            srcset="https:${photo.fields.file.url}?w=480&fm=webp&q=80&fit=fill&f=faces 480w,
-            https:${photo.fields.file.url}?w=800&fm=webp&q=80&fit=fill&f=faces 800w" sizes="(max-width: 600px) 480px,800px"
-            src="https:${photo.fields.file.url}?w=480&fit=fill&f=faces"
-            alt="${photo.fields.title}" loading="lazy">`;
+  return `
+    <img class='u-max-full-width'
+      srcset="https:${photo.fields.file.url}?w=480&fm=webp&q=80&fit=fill&f=faces 480w,
+      https:${photo.fields.file.url}?w=800&fm=webp&q=80&fit=fill&f=faces 800w" sizes="(max-width: 600px) 480px,800px"
+      src="https:${photo.fields.file.url}?w=480&fit=fill&f=faces"
+      alt="${photo.fields.title}" loading="lazy"
+    >`;
 };
 
 const richTextOptions = {
@@ -48,6 +50,17 @@ module.exports = (eleventyConfig) => {
     `;
   });
 
+  eleventyConfig.addShortcode("footerBlock", (footerBlock) => {
+    return `
+      <section id="footer">
+        <div class="inner">
+          <div class="copyright">
+            ${documentToHtmlString(footerBlock.fields.content, richTextOptions)}
+          </div>
+        </div>
+      </section>`;
+  });
+
   eleventyConfig.addShortcode("contentBlock", (contentBlock) => {
     return `
       <section id="${contentBlock.fields.sectionLink}">
@@ -65,15 +78,22 @@ module.exports = (eleventyConfig) => {
       </section>`;
   });
 
-  eleventyConfig.addShortcode("footerBlock", (footerBlock) => {
+  eleventyConfig.addShortcode("featuretteBlock", (featuretteBlock) => {
     return `
-      <section id="footer">
-        <div class="inner">
-          <div class="copyright">
-            ${documentToHtmlString(footerBlock.fields.content, richTextOptions)}
-          </div>
-        </div>
-      </section>`;
+      <div class="podcast">
+        <h3 class="podcast-title">${featuretteBlock.fields.title}</h1>
+        <p class="podcast-author">${featuretteBlock.fields.author}</p>
+        <p class="podcast-date">${featuretteBlock.fields.datePosted}</p>
+        <a class="podcast-image podcast-image${featuretteBlock.fields.imageLeft ? '--left' : '--right'}">
+          ${imageProcessing(featuretteBlock.fields.image)}
+        </a>
+        <div id="buzzsprout-player-${featuretteBlock.fields.episodeId}"></div>
+        <script src="${featuretteBlock.fields.episodeSrc}" type="text/javascript" charset="utf-8"></script>
+        <p class="podcast-description">
+          ${documentToHtmlString(featuretteBlock.fields.description, richTextOptions)}
+        </p>
+      </div>
+    `;
   });
 
   eleventyConfig.addShortcode("cardBlock", async (cardBlock) => {
@@ -106,48 +126,42 @@ module.exports = (eleventyConfig) => {
       </section>`;
   });
 
-  eleventyConfig.addShortcode("featuretteBlock", (featuretteBlock) => {
-    if (featuretteBlock.fields.imageLocation) {
-      return `
-        <section id="${
-          featuretteBlock.fields.sectionLink
-        }" class="wrapper spotlight style1">
-          <div class="inner">
+  eleventyConfig.addShortcode("imageCarousel", async (imageCarousel) => {
+    const output = await Promise.all(
+      imageCarousel.fields.content.map(({ sys }) => {
+        return (items = client.getEntry(sys.id).then((item) => {
+          if (imageCarousel.fields.usesCards) {
+            return `
+              <article>
+                <a href="#" class="image">
+                  ${imageProcessing(item.fields.image)}
+                </a>
+                <h3 class="major">
+                  ${item.fields.sectionTitle}
+                </h3>
+                ${documentToHtmlString(item.fields.content, richTextOptions)}
+              </article>`;
+          }
+          return `
+            <article>
               <a href="#" class="image">
-                ${imageProcessing(featuretteBlock.fields.image)}
+                ${imageProcessing(item.fields.image)}
               </a>
-              <div class="content">
-                <h2 class="major">
-                  ${featuretteBlock.fields.sectionTitle}
-                </h2>
-                ${documentToHtmlString(
-                  featuretteBlock.fields.content,
-                  richTextOptions
-                )}
-              </div>
-          </div>
-        </section>`;
-    } else {
-      return `
-        <section id="${
-          featuretteBlock.fields.sectionLink
-        }" class="wrapper alt spotlight style2">
-          <div class="inner">
-              <a href="#" class="image">
-                ${imageProcessing(featuretteBlock.fields.image)}
-              </a>
-              <div class="content">
-                <h2 class="major">
-                  ${featuretteBlock.fields.sectionTitle}
-                </h2>
-                ${documentToHtmlString(
-                  featuretteBlock.fields.content,
-                  richTextOptions
-                )}
-              </div>
-          </div>
-        </section>`;
-    }
+            </article>`;
+          }));
+      })
+    );
+    return `
+      <section id="${imageCarousel.fields.sectionLink}" class="wrapper alt style1">
+        <div class="inner">
+          <h2 class="major">
+            ${imageCarousel.fields.sectionTitle}
+          </h2>
+          <section class="card">
+            ${output.join("")}
+          </section>
+        </div>
+      </section>`;
   });
 
   eleventyConfig.addShortcode("siteIdentity", (siteIdentity) => {

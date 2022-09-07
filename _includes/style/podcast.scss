@@ -1,0 +1,26 @@
+@import './theme.scss';
+
+.podcast {
+  border: 1px solid $color-primary;
+  border-radius: 5px;
+  box-shadow: 2px 4px 16px 0;
+  max-width: 500px;
+  padding: 8px;
+  margin: 60px auto;
+
+  &-image {
+    max-width: 50%;
+
+    > img {
+      max-width: 50%;
+    }
+
+    &--right {
+      right: 0;
+    }
+
+    &--left {
+      left: 0;
+    }
+  }
+}
